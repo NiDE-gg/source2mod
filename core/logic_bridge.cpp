@@ -723,9 +723,7 @@ int CoreProviderImpl::QueryClientConVar(int client, const char *cvar)
 
 void CoreProviderImpl::InitializeBridge()
 {
-#ifndef SOURCE2_WIP
 	::serverGlobals.universalTime = g_pUniversalTime;
-#endif
 	::serverGlobals.frametime = &gpGlobals->frametime;
 #ifndef SOURCE2_WIP
 	::serverGlobals.interval_per_tick = &gpGlobals->interval_per_tick;

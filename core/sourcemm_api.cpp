@@ -33,6 +33,7 @@
 #include "sourcemm_api.h"
 #ifdef SOURCE2_WIP
 #include <iserver.h>
+#include "TimerSys.h"
 #endif
 #include "Logger.h"
 #include "concmd_cleaner.h"
@@ -223,6 +224,20 @@ void SourceMod_Core::OnLevelInit(char const *pMapName, char const *pMapEntities,
 	 * listener event (pMapEntities is always empty on this path). This is the
 	 * Source2 replacement for the IServerGameDLL::LevelInit SourceHook. */
 	g_SourceMod.LevelInitSource2(pMapName);
+}
+
+void SourceMod_Core::OnLevelShutdown()
+{
+	/* Metamod forwards Source2 LoopShutdown here. The Source1 LevelShutdown
+	 * hook is not installed, so retire map-bound timers explicitly. Keep
+	 * this scoped to timers; the full Source2 map-end lifecycle is unported. */
+	g_Timers.OnSourceModLevelEnd();
+	g_Timers.RemoveMapChangeTimers();
+
+	/* The old server globals must not be used during the transition.
+	 * LevelInitSource2 obtains the next server's globals; until then,
+	 * TimerSystem uses its fixed-tick fallback without a map-time delta. */
+	gpGlobals = NULL;
 }
 #endif
 
