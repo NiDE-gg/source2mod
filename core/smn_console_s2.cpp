@@ -58,6 +58,7 @@
 #include <interfaces/interfaces.h>
 
 #include "sourcemod.h"
+#include "sourcemm_api.h"
 #include "sm_autonatives.h"
 #include "sm_globals.h"
 #include "provider.h"
@@ -166,6 +167,16 @@ static cell_t RegisterS2Command(IPluginContext *pContext, const cell_t *params,
 			[key](int client, const ICommandArgs *args) -> bool {
 				return DispatchS2ServerCommand(key, client, args);
 			});
+
+		/* Client-invokable commands must be marked FCVAR_CLIENT_CAN_EXECUTE
+		 * or the engine refuses the client->server dispatch (verified live:
+		 * "tried to execute command ... but it is not marked"). */
+		if (type != S2CmdType::Server)
+		{
+			ConCommandRef ref = icvar->FindConCommand(name, true);
+			if (ref.IsValidRef())
+				ref.AddFlags(FCVAR_CLIENT_CAN_EXECUTE);
+		}
 	}
 
 	return 1;
@@ -226,7 +237,8 @@ static cell_t sm_RegAdminCmd(IPluginContext *pContext, const cell_t *params)
 		return pContext->ThrowNativeError("Invalid function id (%X)", params[2]);
 
 	std::string key(name);
-	s_server_cmds[key] = S2ServerCmdInfo{pFunction, pContext, S2CmdType::Admin,
+	const S2CmdType type = S2CmdType::Admin;
+	s_server_cmds[key] = S2ServerCmdInfo{pFunction, pContext, type,
 	                                     (SourceMod::FlagBits)params[3]};
 
 	if (s_defined_names.insert(key).second)
@@ -235,6 +247,16 @@ static cell_t sm_RegAdminCmd(IPluginContext *pContext, const cell_t *params)
 			[key](int client, const ICommandArgs *args) -> bool {
 				return DispatchS2ServerCommand(key, client, args);
 			});
+
+		/* Client-invokable commands must be marked FCVAR_CLIENT_CAN_EXECUTE
+		 * or the engine refuses the client->server dispatch (verified live:
+		 * "tried to execute command ... but it is not marked"). */
+		if (type != S2CmdType::Server)
+		{
+			ConCommandRef ref = icvar->FindConCommand(name, true);
+			if (ref.IsValidRef())
+				ref.AddFlags(FCVAR_CLIENT_CAN_EXECUTE);
+		}
 	}
 
 	return 1;
