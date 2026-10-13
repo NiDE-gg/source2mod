@@ -42,6 +42,7 @@ project.sources += [
   'GameHooks.cpp',
   'smn_console_s2.cpp',
   'PlayerManagerS2.cpp',
+  'smn_convar_s2.cpp',
 ]
 
 # SDK name to shipping gamedir
