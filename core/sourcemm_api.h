@@ -36,10 +36,14 @@
 #include <ISmmPlugin.h>
 #include <eiface.h>
 #include <igameevents.h>
+#ifndef SOURCE2_WIP
 #include <iplayerinfo.h>
+#endif
 #include <filesystem.h>
+#ifndef SOURCE2_WIP
 #include <IEngineSound.h>
 #include <toolframework/itoolentity.h>
+#endif
 
 /**
  * @file Contains wrappers around required Metamod:Source API exports
@@ -80,10 +84,14 @@ extern CGlobalVars *gpGlobals;
 extern IGameEventManager2 *gameevents;
 extern SourceHook::CallClass<IVEngineServer> *enginePatch;
 extern SourceHook::CallClass<IServerGameDLL> *gamedllPatch;
+#ifndef SOURCE2_WIP
 extern IPlayerInfoManager *playerinfo;
+#endif
 extern IFileSystem *filesystem;
+#ifndef SOURCE2_WIP
 extern IEngineSound *enginesound;
-#if SOURCE_ENGINE >= SE_ORANGEBOX
+#endif
+#if !defined(SOURCE2_WIP) && SOURCE_ENGINE >= SE_ORANGEBOX
 extern IServerTools *servertools;
 #endif
 

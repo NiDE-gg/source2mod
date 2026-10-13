@@ -103,7 +103,7 @@ public:
 #endif
 
 private:
-	void OnDispatchConCommand(ConCommandHandle handle, const CCommandContext &context, const CCommand &command);
+	void OnDispatchConCommand(ConCommandRef handle, const CCommandContext &context, const CCommand &command);
 
 #ifndef SOURCE2_WIP
 	// Static callback that Valve's ConVar object executes when the convar's value changes.

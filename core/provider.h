@@ -88,11 +88,13 @@ private:
 	struct CommandImpl : public ke::Refcounted<CommandImpl>
 	{
 	public:
-		CommandImpl(ConCommand *cmd);
+		CommandImpl(ConCommand *cmd, char *name, char *help);
 		~CommandImpl();
 
 	private:
 		ConCommand *cmd_;
+		char *name_;
+		char *help_;
 	};
 	std::vector<ke::RefPtr<CommandImpl>> commands_;
 };

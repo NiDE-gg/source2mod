@@ -34,7 +34,7 @@
 #include "command_args.h"
 #include "provider.h"
 
-SH_DECL_HOOK3_void( ICvar, DispatchConCommand, SH_NOATTRIB, 0, ConCommandHandle, const CCommandContext &, const CCommand & );
+SH_DECL_HOOK3_void( ICvar, DispatchConCommand, SH_NOATTRIB, 0, ConCommandRef, const CCommandContext &, const CCommand & );
 
 #ifndef SOURCE2_WIP
 #if SOURCE_ENGINE >= SE_ORANGEBOX
@@ -114,9 +114,9 @@ void GameHooks::Shutdown()
 	client_cvar_query_mode_ = ClientCvarQueryMode::Unavailable;
 }
 
-void GameHooks::OnDispatchConCommand( ConCommandHandle hndl, const CCommandContext &ctx, const CCommand &args_ )
+void GameHooks::OnDispatchConCommand( ConCommandRef hndl, const CCommandContext &ctx, const CCommand &args_ )
 {
-	auto regcmd = registered_commands_.find(hndl.Get());
+	auto regcmd = registered_commands_.find(hndl.GetAccessIndex());
 
 	if(regcmd != registered_commands_.end())
 	{
@@ -158,7 +158,7 @@ void GameHooks::OnQueryCvarValueFinished(QueryCvarCookie_t cookie, edict_t *pPla
 
 void GameHooks::AddCommandHook(ConCommand *cmd, const CommandHook::Callback &callback)
 {
-	registered_commands_[cmd->GetRef()->handle.Get()] = callback;
+	registered_commands_[cmd->GetAccessIndex()] = callback;
 }
 
 #ifndef SOURCE2_WIP

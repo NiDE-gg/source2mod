@@ -69,7 +69,7 @@ sm_logic_t logicore;
 IThreader *g_pThreader = nullptr;
 ITextParsers *textparsers = nullptr;
 ITranslator *translator = nullptr;
-IScriptManager *scripts = nullptr;
+SourceMod::IScriptManager *scripts = nullptr;
 IShareSys *sharesys = nullptr;
 IExtensionSys *extsys = nullptr;
 IHandleSys *handlesys = nullptr;
@@ -216,6 +216,7 @@ public:
 	}
 } fs_wrapper;
 
+#ifndef SOURCE2_WIP
 class VPlayerInfo_Logic : public IPlayerInfoBridge
 {
 public:
@@ -284,6 +285,7 @@ public:
 		pInfo->ChangeTeam(iTeamNum);
 	}
 } playerinfo_wrapper;
+#endif // !SOURCE2_WIP
 
 #ifndef SOURCE2_WIP
 static ConVar sm_show_activity("sm_show_activity", "13", FCVAR_SPONLY, "Activity display setting (see source2mod.cfg)");
@@ -434,7 +436,11 @@ CoreProviderImpl::CoreProviderImpl()
 	this->sm = &g_SourceMod;
 	this->engine = &engine_wrapper;
 	this->filesystem = &fs_wrapper;
+#ifndef SOURCE2_WIP
 	this->playerInfo = &playerinfo_wrapper;
+#else
+	this->playerInfo = nullptr;
+#endif
 
 #ifndef SOURCE2_WIP
 	this->timersys = &g_Timers;
@@ -715,7 +721,14 @@ void CoreProviderImpl::InitializeBridge()
 	::serverGlobals.universalTime = g_pUniversalTime;
 #endif
 	::serverGlobals.frametime = &gpGlobals->frametime;
+#ifndef SOURCE2_WIP
 	::serverGlobals.interval_per_tick = &gpGlobals->interval_per_tick;
+#else
+	// CS2 runs at a fixed 64-tick rate; hl2sdk-cs2 game/shared/shareddefs.h defines
+	// TICK_INTERVAL as (1 / 64) and CGlobalVars no longer exposes interval_per_tick.
+	static float s2_interval_per_tick = 1.0f / 64.0f;
+	::serverGlobals.interval_per_tick = &s2_interval_per_tick;
+#endif
 
 	this->listeners = SMGlobalClass::head;
 
@@ -787,17 +800,18 @@ void CoreProviderImpl::AddPostCommandHook(ConCommand *cmd, const CommandHook::Ca
 }
 #endif
 
-CoreProviderImpl::CommandImpl::CommandImpl(ConCommand *cmd)
-: cmd_(cmd)
+CoreProviderImpl::CommandImpl::CommandImpl(ConCommand *cmd, char *name, char *help)
+: cmd_(cmd), name_(name), help_(help)
 {
 }
 
 CoreProviderImpl::CommandImpl::~CommandImpl()
 {
-	g_SMAPI->UnregisterConCommandBase(g_PLAPI, cmd_);
-	delete [] const_cast<char *>(cmd_->GetHelpText());
-	delete [] const_cast<char *>(cmd_->GetName());
+	// Source2: the registry owns its own copy of name/help; ours are freed here.
+	g_SMAPI->UnregisterConCommand(g_PLAPI, cmd_);
 	delete cmd_;
+	delete [] help_;
+	delete [] name_;
 }
 
 class EngineArgs : public ICommandArgs
@@ -826,16 +840,16 @@ CoreProviderImpl::DefineCommand(const char *name, const char *help, const Comman
 {
 	char *new_name = sm_strdup(name);
 	char *new_help = sm_strdup(help);
-	int flags = 0;
+	uint64 flags = 0;
 
 	auto ignore_callback = [] (DISPATCH_ARGS) -> void {
 	};
 
-	ConCommandRefAbstract ref;
-	ConCommand *cmd = new ConCommand(&ref, new_name, ignore_callback, new_help, flags);
+	ConCommand *cmd = new ConCommand(new_name, static_cast<FnCommandCallback_t>(ignore_callback), new_help, flags);
+	g_SMAPI->RegisterConCommand(g_PLAPI, cmd);
 	AddCommandHook(cmd, callback);
 
-	ke::RefPtr<CommandImpl> impl = new CommandImpl(cmd);
+	ke::RefPtr<CommandImpl> impl = new CommandImpl(cmd, new_name, new_help);
 	commands_.push_back(impl);
 }
 

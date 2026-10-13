@@ -50,11 +50,17 @@ ICvar *icvar = NULL;
 IGameEventManager2 *gameevents = NULL;
 CallClass<IVEngineServer> *enginePatch = NULL;
 CallClass<IServerGameDLL> *gamedllPatch = NULL;
+#ifndef SOURCE2_WIP
 IPlayerInfoManager *playerinfo = NULL;
+#endif
 IFileSystem *filesystem = NULL;
+#ifndef SOURCE2_WIP
 IEngineSound *enginesound = NULL;
+#endif
 #if SOURCE_ENGINE >= SE_ORANGEBOX
+#ifndef SOURCE2_WIP
 IServerTools *servertools = NULL;
+#endif
 #endif
 
 #ifndef SOURCE2_WIP
