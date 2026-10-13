@@ -64,6 +64,9 @@
 #include "logic_bridge.h"
 #include <IPluginSys.h>
 #include <IRootConsoleMenu.h>
+#include <IAdminSystem.h>
+#include <IPlayerHelpers.h>
+#include "PlayerManagerS2.h"
 /* Must come after the SDK's interfaces.h (pulled in by provider.h): both
  * declare an IScriptManager and the reverse order makes the name ambiguous. */
 #include <bridge/include/IScriptManager.h>
@@ -72,10 +75,19 @@ using SourceMod::ICommandArgs;
 using SourceMod::IPlugin;
 using SourceMod::IPluginsListener;
 
+enum class S2CmdType
+{
+	Server,   /* RegServerCmd: Action (int args) */
+	Console,  /* RegConsoleCmd: Action (int client, int args) */
+	Admin,    /* RegAdminCmd: console + admin access check */
+};
+
 struct S2ServerCmdInfo
 {
 	IPluginFunction *callback;
 	IPluginContext *owner;
+	S2CmdType type;
+	SourceMod::FlagBits adminflags;
 };
 
 /* Command name -> plugin callback. The underlying ConCommands remain owned
@@ -89,16 +101,38 @@ static std::map<std::string, S2ServerCmdInfo> s_server_cmds;
 static std::set<std::string> s_defined_names;
 static std::vector<const ICommandArgs *> s_cmd_args_stack;
 
-static bool DispatchS2ServerCommand(const std::string &name, int client, const ICommandArgs *args)
+static bool DispatchS2ServerCommand(const std::string &name, int slot, const ICommandArgs *args)
 {
 	auto it = s_server_cmds.find(name);
 	if (it == s_server_cmds.end() || it->second.callback == nullptr)
 		return false;
 
+	S2ServerCmdInfo &info = it->second;
+
+	/* GameHooks hands us the raw player slot; the server console is -1,
+	 * which maps to SourceMod client 0. */
+	int client = (slot < 0) ? 0 : slot + 1;
+
+	if (info.type != S2CmdType::Server && client != 0)
+	{
+		SourceMod::IGamePlayer *pPlayer = g_PlayersS2.GetGamePlayer(client);
+		if (pPlayer == nullptr || !pPlayer->IsConnected())
+			return false;
+
+		if (info.type == S2CmdType::Admin &&
+		    (adminsys == nullptr || !adminsys->CheckAccess(client, name.c_str(), info.adminflags, false)))
+		{
+			pPlayer->PrintToConsole("[SM] You do not have access to this command.\n");
+			return true;
+		}
+	}
+
 	s_cmd_args_stack.push_back(args);
 
-	IPluginFunction *fn = it->second.callback;
+	IPluginFunction *fn = info.callback;
 	cell_t result = 0;
+	if (info.type != S2CmdType::Server)
+		fn->PushCell(client);
 	fn->PushCell(args->ArgC() - 1);
 	fn->Execute(&result);
 
@@ -107,6 +141,34 @@ static bool DispatchS2ServerCommand(const std::string &name, int client, const I
 	/* The registered ConCommand has no useful engine callback:
 	 * always supersede the original dispatch. */
 	return true;
+}
+
+static cell_t RegisterS2Command(IPluginContext *pContext, const cell_t *params,
+                                S2CmdType type, SourceMod::FlagBits adminflags)
+{
+	char *name, *help;
+	pContext->LocalToString(params[1], &name);
+	pContext->LocalToString(params[3], &help);
+
+	if (!name[0])
+		return pContext->ThrowNativeError("Command name must not be empty");
+
+	IPluginFunction *pFunction = pContext->GetFunctionById(params[2]);
+	if (!pFunction)
+		return pContext->ThrowNativeError("Invalid function id (%X)", params[2]);
+
+	std::string key(name);
+	s_server_cmds[key] = S2ServerCmdInfo{pFunction, pContext, type, adminflags};
+
+	if (s_defined_names.insert(key).second)
+	{
+		sCoreProviderImpl.DefineCommand(name, help,
+			[key](int client, const ICommandArgs *args) -> bool {
+				return DispatchS2ServerCommand(key, client, args);
+			});
+	}
+
+	return 1;
 }
 
 class S2ConsoleNatives :
@@ -137,11 +199,24 @@ public:
 	}
 } s_S2ConsoleNatives;
 
+/* FCVAR-style flags params are accepted but ignored: see the file header. */
+
 static cell_t sm_RegServerCmd(IPluginContext *pContext, const cell_t *params)
+{
+	return RegisterS2Command(pContext, params, S2CmdType::Server, 0);
+}
+
+static cell_t sm_RegConsoleCmd(IPluginContext *pContext, const cell_t *params)
+{
+	return RegisterS2Command(pContext, params, S2CmdType::Console, 0);
+}
+
+/* RegAdminCmd(cmd, callback, adminflags, description="", group="", flags=0) */
+static cell_t sm_RegAdminCmd(IPluginContext *pContext, const cell_t *params)
 {
 	char *name, *help;
 	pContext->LocalToString(params[1], &name);
-	pContext->LocalToString(params[3], &help);
+	pContext->LocalToString(params[4], &help);
 
 	if (!name[0])
 		return pContext->ThrowNativeError("Command name must not be empty");
@@ -150,10 +225,9 @@ static cell_t sm_RegServerCmd(IPluginContext *pContext, const cell_t *params)
 	if (!pFunction)
 		return pContext->ThrowNativeError("Invalid function id (%X)", params[2]);
 
-	/* params[4] (flags) deliberately ignored: see the file header. */
-
 	std::string key(name);
-	s_server_cmds[key] = S2ServerCmdInfo{pFunction, pContext};
+	s_server_cmds[key] = S2ServerCmdInfo{pFunction, pContext, S2CmdType::Admin,
+	                                     (SourceMod::FlagBits)params[3]};
 
 	if (s_defined_names.insert(key).second)
 	{
@@ -213,6 +287,8 @@ static cell_t sm_GetCmdArgString(IPluginContext *pContext, const cell_t *params)
 REGISTER_NATIVES(s2ConsoleNatives)
 {
 	{"RegServerCmd",		sm_RegServerCmd},
+	{"RegConsoleCmd",		sm_RegConsoleCmd},
+	{"RegAdminCmd",			sm_RegAdminCmd},
 	{"GetCmdArgs",			sm_GetCmdArgs},
 	{"GetCmdArg",			sm_GetCmdArg},
 	{"GetCmdArgString",		sm_GetCmdArgString},
