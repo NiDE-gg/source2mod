@@ -40,6 +40,36 @@
 
 PlayerManagerS2 g_PlayersS2;
 
+/* On a secure dedicated server the engine enforces Steam session auth
+ * before a client can enter the game, so the connect-time XUID is
+ * backend-authenticated. With -insecure, XUIDs can be spoofed and
+ * validated identity lookups must fail (Linux-only: /proc parse). */
+static bool IsServerInsecure()
+{
+	static int cached = -1;
+	if (cached == -1)
+	{
+		cached = 0;
+		FILE *fp = fopen("/proc/self/cmdline", "rb");
+		if (fp != nullptr)
+		{
+			char *arg = nullptr;
+			size_t argsize = 0;
+			while (getdelim(&arg, &argsize, 0, fp) != -1)
+			{
+				if (strcmp(arg, "-insecure") == 0)
+				{
+					cached = 1;
+					break;
+				}
+			}
+			free(arg);
+			fclose(fp);
+		}
+	}
+	return cached == 1;
+}
+
 /* CS2 caps out at 64 player slots; index 0 is the server console. */
 #define S2_MAX_PLAYERS 64
 static CPlayerS2 s_Players[S2_MAX_PLAYERS + 1];
@@ -136,9 +166,7 @@ const char *CPlayerS2::GetIPAddress()
 
 const char *CPlayerS2::GetAuthString(bool validated)
 {
-	/* Source2 WIP: Steam ticket validation is not wired up; the XUID the
-	 * engine reports at connect time is treated as authoritative. */
-	if (!IsAuthorized())
+	if (!IsAuthorized() || (validated && IsServerInsecure() && !m_bFakeClient))
 		return nullptr;
 	return m_Steam2Id.c_str();
 }
@@ -221,16 +249,11 @@ void CPlayerS2::DoBasicAdminChecks()
 	if (GetAdminId() != INVALID_ADMIN_ID || adminsys == nullptr)
 		return;
 
-	/* Source2 WIP: unlike the Source1 manager, no admin password checks and
-	 * no kick-on-name-match (both need ConVar + timer support). */
+	/* Source2 WIP: name-based admin matching is deliberately NOT implemented.
+	 * Source1 pairs it with a mandatory password check (and kicks on
+	 * mismatch), which needs ConVar + timer support; granting admin on a
+	 * bare name match would let anyone impersonate an admin. */
 	AdminId id;
-	if (!m_Name.empty() &&
-	    (id = adminsys->FindAdminByIdentity("name", m_Name.c_str())) != INVALID_ADMIN_ID)
-	{
-		SetAdminId(id, false);
-		return;
-	}
-
 	if (!m_Ip.empty() &&
 	    (id = adminsys->FindAdminByIdentity("ip", m_Ip.c_str())) != INVALID_ADMIN_ID)
 	{
@@ -238,9 +261,10 @@ void CPlayerS2::DoBasicAdminChecks()
 		return;
 	}
 
-	if (IsAuthorized() && !m_Steam2Id.empty())
+	const char *steam2 = GetSteam2Id(true);
+	if (steam2 != nullptr && steam2[0] != '\0' && strcmp(steam2, "BOT") != 0)
 	{
-		if ((id = adminsys->FindAdminByIdentity("steam", m_Steam2Id.c_str())) != INVALID_ADMIN_ID)
+		if ((id = adminsys->FindAdminByIdentity("steam", steam2)) != INVALID_ADMIN_ID)
 		{
 			SetAdminId(id, false);
 		}
@@ -301,28 +325,28 @@ void CPlayerS2::ClearAdmin()
 
 unsigned int CPlayerS2::GetSteamAccountID(bool validated)
 {
-	if (!IsAuthorized() || m_bFakeClient)
+	if (!IsAuthorized() || m_bFakeClient || (validated && IsServerInsecure()))
 		return 0;
 	return (unsigned int)(m_Xuid & 0xFFFFFFFF);
 }
 
 uint64_t CPlayerS2::GetSteamId64(bool validated)
 {
-	if (!IsAuthorized() || m_bFakeClient)
+	if (!IsAuthorized() || m_bFakeClient || (validated && IsServerInsecure()))
 		return 0;
 	return m_Xuid;
 }
 
 const char *CPlayerS2::GetSteam2Id(bool validated)
 {
-	if (!IsAuthorized())
+	if (!IsAuthorized() || (validated && IsServerInsecure() && !m_bFakeClient))
 		return nullptr;
 	return m_Steam2Id.c_str();
 }
 
 const char *CPlayerS2::GetSteam3Id(bool validated)
 {
-	if (!IsAuthorized())
+	if (!IsAuthorized() || (validated && IsServerInsecure() && !m_bFakeClient))
 		return nullptr;
 	return m_Steam3Id.c_str();
 }
