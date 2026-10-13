@@ -47,6 +47,7 @@ project.sources += [
   'EventManager.cpp',
   'smn_events.cpp',
   'GameEventsS2.cpp',
+  'smn_halflife_s2.cpp',
 ]
 
 # SDK name to shipping gamedir
