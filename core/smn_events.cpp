@@ -32,7 +32,9 @@
 #include "sm_globals.h"
 #include "sourcemm_api.h"
 #include "EventManager.h"
+#ifndef SOURCE2_WIP
 #include "PlayerManager.h"
+#endif
 #include "logic_bridge.h"
 
 static cell_t sm_HookEvent(IPluginContext *pContext, const cell_t *params)
@@ -160,6 +162,10 @@ static cell_t sm_FireEventToClient(IPluginContext *pContext, const cell_t *param
 		return pContext->ThrowNativeError("Invalid game event handle %x (error %d)", hndl, err);
 	}
 
+#ifdef SOURCE2_WIP
+	/* Needs per-client IClient event delivery, not ported yet. */
+	return pContext->ThrowNativeError("FireEventToClient is not supported on Source2 yet");
+#else
 	int client = params[2];
 	CPlayer *pPlayer = g_Players.GetPlayerByIndex(client);
 
@@ -182,6 +188,7 @@ static cell_t sm_FireEventToClient(IPluginContext *pContext, const cell_t *param
 	g_EventManager.FireEventToClient(pInfo, pClient);
 
 	return 1;
+#endif
 }
 
 static cell_t sm_CancelCreatedEvent(IPluginContext *pContext, const cell_t *params)
@@ -251,7 +258,7 @@ static cell_t sm_GetEventBool(IPluginContext *pContext, const cell_t *params)
 		defValue = !!params[3];
 	}
 
-	return pInfo->pEvent->GetBool(key, defValue);
+	return pInfo->pEvent->GetBool((const char *)key, defValue);
 }
 
 static cell_t sm_GetEventInt(IPluginContext *pContext, const cell_t *params)
@@ -276,7 +283,7 @@ static cell_t sm_GetEventInt(IPluginContext *pContext, const cell_t *params)
 		defValue = params[3];
 	}
 
-	return pInfo->pEvent->GetInt(key, defValue);
+	return pInfo->pEvent->GetInt((const char *)key, defValue);
 }
 
 static cell_t sm_GetEventFloat(IPluginContext *pContext, const cell_t *params)
@@ -301,7 +308,7 @@ static cell_t sm_GetEventFloat(IPluginContext *pContext, const cell_t *params)
 		defValue = sp_ctof(params[3]);
 	}
 
-	float value = pInfo->pEvent->GetFloat(key, defValue);
+	float value = pInfo->pEvent->GetFloat((const char *)key, defValue);
 
 	return sp_ftoc(value);
 }
@@ -328,7 +335,7 @@ static cell_t sm_GetEventString(IPluginContext *pContext, const cell_t *params)
 		pContext->LocalToString(params[5], &defValue);
 	}
 
-	const char *value = pInfo->pEvent->GetString(key, defValue ? defValue : "");
+	const char *value = pInfo->pEvent->GetString((const char *)key, defValue ? defValue : "");
 	pContext->StringToLocalUTF8(params[3], params[4], value, NULL);
 
 	return 1;
@@ -350,7 +357,7 @@ static cell_t sm_SetEventBool(IPluginContext *pContext, const cell_t *params)
 	char *key;
 	pContext->LocalToString(params[2], &key);
 
-	pInfo->pEvent->SetBool(key, params[3] ? true : false);
+	pInfo->pEvent->SetBool((const char *)key, params[3] ? true : false);
 
 	return 1;
 }
@@ -371,7 +378,7 @@ static cell_t sm_SetEventInt(IPluginContext *pContext, const cell_t *params)
 	char *key;
 	pContext->LocalToString(params[2], &key);
 
-	pInfo->pEvent->SetInt(key, params[3]);
+	pInfo->pEvent->SetInt((const char *)key, params[3]);
 
 	return 1;
 }
@@ -393,7 +400,7 @@ static cell_t sm_SetEventFloat(IPluginContext *pContext, const cell_t *params)
 	pContext->LocalToString(params[2], &key);
 
 	float value = sp_ctof(params[3]);
-	pInfo->pEvent->SetFloat(key, value);
+	pInfo->pEvent->SetFloat((const char *)key, value);
 
 	return 1;
 }
@@ -415,7 +422,7 @@ static cell_t sm_SetEventString(IPluginContext *pContext, const cell_t *params)
 	pContext->LocalToString(params[2], &key);
 	pContext->LocalToString(params[3], &value);
 
-	pInfo->pEvent->SetString(key, value);
+	pInfo->pEvent->SetString((const char *)key, value);
 
 	return 1;
 }

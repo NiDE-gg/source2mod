@@ -44,6 +44,9 @@ project.sources += [
   'PlayerManagerS2.cpp',
   'smn_convar_s2.cpp',
   'TimerSys.cpp',
+  'EventManager.cpp',
+  'smn_events.cpp',
+  'GameEventsS2.cpp',
 ]
 
 # SDK name to shipping gamedir

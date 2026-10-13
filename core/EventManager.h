@@ -116,7 +116,14 @@ public: // IPluginsListener
 	void OnPluginUnloaded(IPlugin *plugin);
 public: // IGameEventListener2
 	void FireGameEvent(IGameEvent *pEvent);
-#if SOURCE_ENGINE >= SE_LEFT4DEAD
+#ifdef SOURCE2_WIP
+public:
+	/* Called once the game event manager singleton has been captured
+	 * (Source2 has no interface factory for it); installs the FireEvent
+	 * hooks and registers listeners for hooks taken before capture. */
+	void OnGameEventManagerReady();
+#endif
+#if SOURCE_ENGINE >= SE_LEFT4DEAD && !defined(SOURCE2_WIP)
 	int GetEventDebugID();
 #endif
 public:

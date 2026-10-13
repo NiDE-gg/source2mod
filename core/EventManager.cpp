@@ -31,9 +31,12 @@
 
 #include "EventManager.h"
 #include "sm_stringutil.h"
+#ifndef SOURCE2_WIP
 #include "PlayerManager.h"
+#endif
 
 #include "logic_bridge.h"
+#include <bridge/include/ILogger.h>
 #include <bridge/include/IScriptManager.h>
 
 EventManager g_EventManager;
@@ -75,9 +78,16 @@ EventManager::~EventManager()
 
 void EventManager::OnSourceModAllInitialized()
 {
-	/* Add a hook for IGameEventManager2::FireEvent() */
-	SH_ADD_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent), false);
-	SH_ADD_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent_Post), true);
+#ifdef SOURCE2_WIP
+	/* Source2: the manager is captured later (see GameEventsS2); the
+	 * FireEvent hooks are installed in OnGameEventManagerReady. */
+	if (gameevents != NULL)
+#endif
+	{
+		/* Add a hook for IGameEventManager2::FireEvent() */
+		SH_ADD_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent), false);
+		SH_ADD_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent_Post), true);
+	}
 
 	HandleAccess sec;
 
@@ -92,15 +102,21 @@ void EventManager::OnSourceModAllInitialized()
 
 void EventManager::OnSourceModShutdown()
 {
-	/* Remove hook for IGameEventManager2::FireEvent() */
-	SH_REMOVE_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent), false);
-	SH_REMOVE_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent_Post), true);
+	if (gameevents != NULL)
+	{
+		/* Remove hook for IGameEventManager2::FireEvent() */
+		SH_REMOVE_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent), false);
+		SH_REMOVE_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent_Post), true);
+	}
 
 	/* Remove the 'GameEvent' handle type */
 	handlesys->RemoveType(m_EventType, g_pCoreIdent);
 
 	/* Remove ourselves as listener for events */
-	gameevents->RemoveListener(this);
+	if (gameevents != NULL)
+	{
+		gameevents->RemoveListener(this);
+	}
 }
 
 void EventManager::OnHandleDestroy(HandleType_t type, void *object)
@@ -158,6 +174,28 @@ void EventManager::FireGameEvent(IGameEvent *pEvent)
 	   Just need to add ourselves as a listener to make our hook on IGameEventManager2::FireEvent work */
 }
 
+#ifdef SOURCE2_WIP
+void EventManager::OnGameEventManagerReady()
+{
+	SH_ADD_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent), false);
+	SH_ADD_HOOK(IGameEventManager2, FireEvent, gameevents, SH_MEMBER(this, &EventManager::OnFireEvent_Post), true);
+
+	/* Register listeners for hooks taken before the capture. Unknown event
+	 * names are logged; their hooks simply never fire. */
+	NameHashSet<EventHook *>::iterator iter = m_EventHooks.iter();
+	while (!iter.empty())
+	{
+		EventHook *pHook = *iter;
+		if (!gameevents->FindListener(this, pHook->name.c_str()) &&
+		    !gameevents->AddListener(this, pHook->name.c_str(), true))
+		{
+			logger->LogError("[SM] Hooked event \"%s\" does not exist", pHook->name.c_str());
+		}
+		iter.next();
+	}
+}
+#endif
+
 #ifndef SOURCE2_WIP
 int EventManager::GetEventDebugID()
 {
@@ -169,6 +207,14 @@ EventHookError EventManager::HookEvent(const char *name, IPluginFunction *pFunct
 {
 	EventHook *pHook;
 
+#ifdef SOURCE2_WIP
+	/* Manager not captured yet: accept the hook, listener registration
+	 * (and event-name validation) happens in OnGameEventManagerReady. */
+	if (gameevents == NULL)
+	{
+	}
+	else
+#endif
 	/* If we aren't listening to this event... */
 	if (!gameevents->FindListener(this, name))
 	{
@@ -327,6 +373,12 @@ EventHookError EventManager::UnhookEvent(const char *name, IPluginFunction *pFun
 EventInfo *EventManager::CreateEvent(IPluginContext *pContext, const char *name, bool force)
 {
 	EventInfo *pInfo;
+#ifdef SOURCE2_WIP
+	if (gameevents == NULL)
+	{
+		return NULL;
+	}
+#endif
 	IGameEvent *pEvent = gameevents->CreateEvent(name, force);
 
 	if (pEvent)

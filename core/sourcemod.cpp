@@ -44,6 +44,7 @@
 #include "TimerSys.h"
 #ifdef SOURCE2_WIP
 #include <iserver.h>
+#include "GameEventsS2.h"
 #endif
 
 #include "compat_wrappers.h"
@@ -329,6 +330,16 @@ void SourceModBase::StartSourceMod(bool late)
 	gamedllPatch = SH_GET_CALLCLASS(gamedll);
 
 	sCoreProviderImpl.InitializeBridge();
+
+#ifdef SOURCE2_WIP
+	/* Resolve the game event manager singleton (no interface factory on
+	 * Source2). Needs `logger`, so this runs after InitializeBridge. */
+	char geError[256];
+	if (!S2GameEvents_Init(geError, sizeof(geError)))
+	{
+		logger->LogError("[SM] Game events unavailable: %s", geError);
+	}
+#endif
 
 	/* Initialize CoreConfig to get the SourceMod base path properly - this parses core.cfg */
 	g_CoreConfig.Initialize();
@@ -718,6 +729,7 @@ void SourceModBase::ShutdownServices()
 	SH_REMOVE_HOOK(IServerGameDLL, Think, gamedll, SH_MEMBER(logicore.callbacks, &IProviderCallbacks::OnThink), false);
 #else
 	SH_REMOVE_HOOK(IServerGameDLL, PreWorldUpdate, gamedll, SH_MEMBER(&g_Timers, &TimerSystem::OnPreWorldUpdate), false);
+	S2GameEvents_Shutdown();
 #endif
 }
 
