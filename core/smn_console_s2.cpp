@@ -163,19 +163,38 @@ static cell_t RegisterS2Command(IPluginContext *pContext, const cell_t *params,
 
 	if (s_defined_names.insert(key).second)
 	{
+		/* SECURITY: never shadow a command that already exists in the
+		 * engine registry. The client-execute flag below would otherwise
+		 * be applied to the engine's own command (e.g. "quit"), letting
+		 * any client run it. Hooking existing engine commands is future
+		 * work (full ConCmdManager port). */
+		if (icvar->FindConCommand(name, true).IsValidRef())
+		{
+			s_defined_names.erase(key);
+			s_server_cmds.erase(key);
+			return pContext->ThrowNativeError(
+				"Command \"%s\" already exists in the engine; hooking existing commands is not supported yet", name);
+		}
+
 		sCoreProviderImpl.DefineCommand(name, help,
 			[key](int client, const ICommandArgs *args) -> bool {
 				return DispatchS2ServerCommand(key, client, args);
 			});
+	}
 
-		/* Client-invokable commands must be marked FCVAR_CLIENT_CAN_EXECUTE
-		 * or the engine refuses the client->server dispatch (verified live:
-		 * "tried to execute command ... but it is not marked"). */
-		if (type != S2CmdType::Server)
+	/* Keep the engine flag in sync with the registered type on every
+	 * (re-)registration: a stale FCVAR_CLIENT_CAN_EXECUTE from a previous
+	 * registration must not survive a type change to Server. The command
+	 * is guaranteed to be ours (shadowing is refused above). The engine
+	 * refuses client->server dispatch without this flag (verified live). */
+	{
+		ConCommandRef ref = icvar->FindConCommand(name, true);
+		if (ref.IsValidRef())
 		{
-			ConCommandRef ref = icvar->FindConCommand(name, true);
-			if (ref.IsValidRef())
+			if (type != S2CmdType::Server)
 				ref.AddFlags(FCVAR_CLIENT_CAN_EXECUTE);
+			else
+				ref.RemoveFlags(FCVAR_CLIENT_CAN_EXECUTE);
 		}
 	}
 
@@ -243,19 +262,38 @@ static cell_t sm_RegAdminCmd(IPluginContext *pContext, const cell_t *params)
 
 	if (s_defined_names.insert(key).second)
 	{
+		/* SECURITY: never shadow a command that already exists in the
+		 * engine registry. The client-execute flag below would otherwise
+		 * be applied to the engine's own command (e.g. "quit"), letting
+		 * any client run it. Hooking existing engine commands is future
+		 * work (full ConCmdManager port). */
+		if (icvar->FindConCommand(name, true).IsValidRef())
+		{
+			s_defined_names.erase(key);
+			s_server_cmds.erase(key);
+			return pContext->ThrowNativeError(
+				"Command \"%s\" already exists in the engine; hooking existing commands is not supported yet", name);
+		}
+
 		sCoreProviderImpl.DefineCommand(name, help,
 			[key](int client, const ICommandArgs *args) -> bool {
 				return DispatchS2ServerCommand(key, client, args);
 			});
+	}
 
-		/* Client-invokable commands must be marked FCVAR_CLIENT_CAN_EXECUTE
-		 * or the engine refuses the client->server dispatch (verified live:
-		 * "tried to execute command ... but it is not marked"). */
-		if (type != S2CmdType::Server)
+	/* Keep the engine flag in sync with the registered type on every
+	 * (re-)registration: a stale FCVAR_CLIENT_CAN_EXECUTE from a previous
+	 * registration must not survive a type change to Server. The command
+	 * is guaranteed to be ours (shadowing is refused above). The engine
+	 * refuses client->server dispatch without this flag (verified live). */
+	{
+		ConCommandRef ref = icvar->FindConCommand(name, true);
+		if (ref.IsValidRef())
 		{
-			ConCommandRef ref = icvar->FindConCommand(name, true);
-			if (ref.IsValidRef())
+			if (type != S2CmdType::Server)
 				ref.AddFlags(FCVAR_CLIENT_CAN_EXECUTE);
+			else
+				ref.RemoveFlags(FCVAR_CLIENT_CAN_EXECUTE);
 		}
 	}
 
