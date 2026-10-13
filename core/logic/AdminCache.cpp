@@ -2019,12 +2019,23 @@ bool AdminCache::CheckClientCommandAccess(int client, const char *cmd, FlagBits 
 	}
 
 	IGamePlayer *player = playerhelpers->GetGamePlayer(client);
+#ifdef SOURCE2_WIP
+	/* No edicts on Source2; the edict test was the Source1 "is in game"
+	 * proxy and always fails there (GetEdict() returns nullptr). */
+	if (!player
+		|| !player->IsInGame()
+		|| player->IsFakeClient())
+	{
+		return false;
+	}
+#else
 	if (!player
 		|| player->GetEdict() == NULL
 		|| player->IsFakeClient())
 	{
 		return false;
 	}
+#endif
 
 	return CheckAdminCommandAccess(player->GetAdminId(), cmd, cmdflags);
 }
