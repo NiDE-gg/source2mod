@@ -49,6 +49,8 @@
 
 #else
 
+#include "PlayerManagerS2.h"
+
 #define SOURCE_BIN_PREFIX ""
 #define SOURCE_BIN_SUFFIX ""
 #define SOURCE_BIN_EXT ".dll"
@@ -447,6 +449,8 @@ CoreProviderImpl::CoreProviderImpl()
 	this->playerhelpers = &g_Players;
 	this->gamehelpers = &g_HL2;
 	this->menus = &g_Menus;
+#else
+	this->playerhelpers = &g_PlayersS2;
 #endif
 
 	this->spe1 = &g_pSourcePawn;
