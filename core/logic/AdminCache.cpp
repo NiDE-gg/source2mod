@@ -782,7 +782,7 @@ bool AdminCache::InvalidateAdmin(AdminId id)
 		return false;
 	}
 
-	if (!m_InvalidatingAdmins && !m_destroying)
+	if (!m_InvalidatingAdmins && !m_destroying && playerhelpers != nullptr)
 	{
 		playerhelpers->ClearAdminId(id);
 	}
@@ -965,7 +965,9 @@ void AdminCache::RegisterAuthIdentType(const char *name)
 void AdminCache::InvalidateAdminCache(bool unlink_admins)
 {
 	m_InvalidatingAdmins = true;
-	if (!m_destroying)
+	/* Source2 WIP: core does not provide IPlayerManager yet (PlayerManager is
+	 * not ported), so playerhelpers can be null. */
+	if (!m_destroying && playerhelpers != nullptr)
 	{
 		int maxClients = playerhelpers->GetMaxClients();
 		for (int i = 1; i <= maxClients; ++i)
@@ -1040,7 +1042,8 @@ void AdminCache::DumpAdminCache(AdminCachePart part, bool rebuild)
 			}
 			m_pCacheFwd->PushCell(AdminCache_Admins);
 			m_pCacheFwd->Execute();
-			playerhelpers->RecheckAnyAdmins();
+			if (playerhelpers != nullptr)
+				playerhelpers->RecheckAnyAdmins();
 		}
 	}
 }

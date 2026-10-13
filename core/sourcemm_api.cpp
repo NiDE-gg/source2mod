@@ -206,6 +206,17 @@ const char *SourceMod_Core::GetLogTag()
 	return "SM";
 }
 
+#ifdef SOURCE2_WIP
+void SourceMod_Core::OnLevelInit(char const *pMapName, char const *pMapEntities, char const *pOldLevel,
+                                 char const *pLandmarkName, bool loadGame, bool background)
+{
+	/* Source2: Metamod's provider translates ILoopMode::LoopInit into this
+	 * listener event (pMapEntities is always empty on this path). This is the
+	 * Source2 replacement for the IServerGameDLL::LevelInit SourceHook. */
+	g_SourceMod.LevelInitSource2(pMapName);
+}
+#endif
+
 void SourceMod_Core::OnVSPListening(IServerPluginCallbacks *iface)
 {
 	/* This shouldn't happen */

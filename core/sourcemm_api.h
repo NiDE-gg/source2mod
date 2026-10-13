@@ -70,6 +70,10 @@ public:
 	const char *GetLogTag();
 public:
 	void OnVSPListening(IServerPluginCallbacks *iface);
+#ifdef SOURCE2_WIP
+	void OnLevelInit(char const *pMapName, char const *pMapEntities, char const *pOldLevel,
+	                 char const *pLandmarkName, bool loadGame, bool background) override;
+#endif
 	void OnUnlinkConCommandBase(PluginId id, ConCommandBase *pCommand);
 	void *OnMetamodQuery(const char *iface, int *ret);
 };

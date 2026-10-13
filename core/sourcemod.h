@@ -81,6 +81,14 @@ public:
 	 */
 	bool LevelInit(char const *pMapName, char const *pMapEntities, char const *pOldLevel, char const *pLandmarkName, bool loadGame, bool background);
 
+#ifdef SOURCE2_WIP
+	/**
+	 * @brief Source2 map start entry point (from IMetamodListener::OnLevelInit).
+	 * No entity lump is available on this path.
+	 */
+	void LevelInitSource2(const char *pMapName);
+#endif
+
 	/**
 	 * @brief Level shutdown hook
 	 */

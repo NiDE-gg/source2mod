@@ -390,6 +390,48 @@ void SourceModBase::StartSourceMod(bool late)
 #endif
 }
 
+#ifdef SOURCE2_WIP
+void SourceModBase::LevelInitSource2(const char *pMapName)
+{
+	/* Seed rand() globally per map */
+	srand(time(NULL));
+
+	/* If we're not loaded... */
+	if (!g_Loaded)
+	{
+		/* Do all global initialization now */
+		StartSourceMod(true);
+	}
+
+	m_IsMapLoading = true;
+	m_ExecPluginReload = true;
+
+	/* Notify! */
+	SMGlobalClass *pBase = SMGlobalClass::head;
+	while (pBase)
+	{
+		pBase->OnSourceModLevelChange(pMapName);
+		pBase = pBase->m_pGlobalClassNext;
+	}
+
+	DoGlobalPluginLoads();
+
+	m_IsMapLoading = false;
+
+	/* Notify! */
+	pBase = SMGlobalClass::head;
+	while (pBase)
+	{
+		pBase->OnSourceModPluginsLoaded();
+		pBase = pBase->m_pGlobalClassNext;
+	}
+
+	/* Source2 NOTE: the entity lump is not provided on this path, so the
+	 * OnMapInit forward (whose contract allows lump edits) is NOT fired.
+	 * Unsupported functionality is reported rather than faked. */
+}
+#endif
+
 #ifndef SOURCE2_WIP
 static bool g_LevelEndBarrier = false;
 bool SourceModBase::LevelInit(char const *pMapName, char const *pMapEntities, char const *pOldLevel, char const *pLandmarkName, bool loadGame, bool background)
