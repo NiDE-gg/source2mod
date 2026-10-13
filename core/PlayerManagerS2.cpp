@@ -506,6 +506,13 @@ void PlayerManagerS2::AuthorizePlayer(CPlayerS2 *pPlayer)
 	if (pPlayer->m_bAuthorized)
 		return;
 
+	/* SECURITY: with -insecure the engine does not enforce Steam session
+	 * auth, so a human client's XUID is spoofable. Never authorize humans
+	 * there: OnClientAuthorized must not hand plugins an unverifiable
+	 * identity. Full ValidateAuthTicketResponse wiring is a phase-2 TODO. */
+	if (!pPlayer->m_bFakeClient && IsServerInsecure())
+		return;
+
 	pPlayer->m_bAuthorized = true;
 	int client = pPlayer->GetIndex();
 	const char *auth = pPlayer->m_Steam2Id.c_str();
