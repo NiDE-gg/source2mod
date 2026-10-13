@@ -51,9 +51,10 @@
 #include <string>
 #include <vector>
 
-/* interfaces.h (SDK cs2) déclare et référence un ::IScriptManager global sans
- * qualification ; il doit être parsé avant le `using namespace SourceMod` de
- * sm_globals.h, sinon le nom devient ambigu avec SourceMod::IScriptManager. */
+/* interfaces.h (cs2 SDK) declares and references a global ::IScriptManager
+ * without qualification; it must be parsed before sm_globals.h brings in
+ * `using namespace SourceMod`, or the name becomes ambiguous with
+ * SourceMod::IScriptManager. */
 #include <interfaces/interfaces.h>
 
 #include "sourcemod.h"
@@ -63,8 +64,8 @@
 #include "logic_bridge.h"
 #include <IPluginSys.h>
 #include <IRootConsoleMenu.h>
-/* Doit venir après interfaces.h du SDK (tiré par provider.h) : les deux
- * déclarent un IScriptManager et l'ordre inverse rend le nom ambigu. */
+/* Must come after the SDK's interfaces.h (pulled in by provider.h): both
+ * declare an IScriptManager and the reverse order makes the name ambiguous. */
 #include <bridge/include/IScriptManager.h>
 
 using SourceMod::ICommandArgs;
@@ -77,13 +78,14 @@ struct S2ServerCmdInfo
 	IPluginContext *owner;
 };
 
-/* Nom de commande -> callback plugin. Les ConCommand sous-jacentes restent
- * possédées par CoreProviderImpl (commands_) jusqu'au shutdown ; seule la
- * liaison vers le plugin est retirée quand celui-ci se décharge. */
+/* Command name -> plugin callback. The underlying ConCommands remain owned
+ * by CoreProviderImpl (commands_) until shutdown; only the binding to the
+ * plugin is removed when the plugin unloads. */
 static std::map<std::string, S2ServerCmdInfo> s_server_cmds;
-/* Noms déjà passés à DefineCommand : la ConCommand moteur vit jusqu'au
- * shutdown, on ne doit jamais la recréer (sinon doublon côté registre engine),
- * même si la liaison plugin a été retirée entre-temps (reload). */
+/* Names already handed to DefineCommand: the engine ConCommand lives until
+ * shutdown and must never be re-created (that would duplicate it in the
+ * engine registry), even if the plugin binding was removed in between
+ * (plugin reload). */
 static std::set<std::string> s_defined_names;
 static std::vector<const ICommandArgs *> s_cmd_args_stack;
 
@@ -102,8 +104,8 @@ static bool DispatchS2ServerCommand(const std::string &name, int client, const I
 
 	s_cmd_args_stack.pop_back();
 
-	/* La ConCommand enregistrée n'a pas de callback moteur utile :
-	 * on supersede toujours le dispatch d'origine. */
+	/* The registered ConCommand has no useful engine callback:
+	 * always supersede the original dispatch. */
 	return true;
 }
 
@@ -148,7 +150,7 @@ static cell_t sm_RegServerCmd(IPluginContext *pContext, const cell_t *params)
 	if (!pFunction)
 		return pContext->ThrowNativeError("Invalid function id (%X)", params[2]);
 
-	/* params[4] (flags) volontairement ignoré : voir l'en-tête du fichier. */
+	/* params[4] (flags) deliberately ignored: see the file header. */
 
 	std::string key(name);
 	s_server_cmds[key] = S2ServerCmdInfo{pFunction, pContext};
