@@ -413,6 +413,24 @@ void PlayerManagerS2::OnSourceModShutdown()
 
 void PlayerManagerS2::OnSourceModLevelChange(const char *mapName)
 {
+	/* CS2 replaces map-local bots without delivering ClientDisconnect.
+	 * Retire their old slots before new connections can reuse them. Human
+	 * connections retain identity/admin state, but must re-enter the game. */
+	/* The old world is already gone. Clear every in-game flag before any
+	 * callback can enumerate players and try to read their old entities. */
+	for (int i = 1; i <= S2_MAX_PLAYERS; i++)
+		s_Players[i].m_bInGame = false;
+	for (int i = 1; i <= S2_MAX_PLAYERS; i++)
+	{
+		CPlayerS2 *player = &s_Players[i];
+		if (!player->IsConnected())
+			continue;
+		if (player->IsFakeClient())
+		{
+			ClientDisconnecting(player);
+			ClientDisconnected(player);
+		}
+	}
 	m_ServerActivated = true;
 
 	std::list<IClientListener *>::iterator iter;
@@ -589,25 +607,42 @@ void PlayerManagerS2::Hook_ClientPutInServer(CPlayerSlot slot, char const *pszNa
 	}
 }
 
-void PlayerManagerS2::Hook_ClientDisconnect(CPlayerSlot slot, ENetworkDisconnectionReason reason,
-                                            const char *pszName, uint64 xuid,
-                                            const char *pszNetworkID)
+void PlayerManagerS2::ClientDisconnecting(CPlayerS2 *pPlayer)
 {
-	int client = IndexOfSlot(slot);
-	CPlayerS2 *pPlayer = GetPlayerBySlot(slot);
 	if (pPlayer == nullptr || !pPlayer->IsConnected())
-		RETURN_META(MRES_IGNORED);
-
-	std::list<IClientListener *>::iterator iter;
-	for (iter = m_hooks.begin(); iter != m_hooks.end(); iter++)
-		(*iter)->OnClientDisconnecting(client);
+		return;
+	int client = pPlayer->GetIndex();
+	for (auto *listener : m_hooks)
+		listener->OnClientDisconnecting(client);
 
 	if (m_cldisconnect != nullptr && m_cldisconnect->GetFunctionCount() > 0)
 	{
 		m_cldisconnect->PushCell(client);
 		m_cldisconnect->Execute(NULL);
 	}
+}
 
+void PlayerManagerS2::ClientDisconnected(CPlayerS2 *pPlayer)
+{
+	if (pPlayer == nullptr || !pPlayer->IsConnected())
+		return;
+	int client = pPlayer->GetIndex();
+	pPlayer->Disconnect();
+	for (auto *listener : m_hooks)
+		listener->OnClientDisconnected(client);
+
+	if (m_cldisconnect_post != nullptr && m_cldisconnect_post->GetFunctionCount() > 0)
+	{
+		m_cldisconnect_post->PushCell(client);
+		m_cldisconnect_post->Execute(NULL);
+	}
+}
+
+void PlayerManagerS2::Hook_ClientDisconnect(CPlayerSlot slot, ENetworkDisconnectionReason reason,
+                                            const char *pszName, uint64 xuid,
+                                            const char *pszNetworkID)
+{
+	ClientDisconnecting(GetPlayerBySlot(slot));
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -616,22 +651,7 @@ void PlayerManagerS2::Hook_ClientDisconnect_Post(CPlayerSlot slot,
                                                  const char *pszName, uint64 xuid,
                                                  const char *pszNetworkID)
 {
-	int client = IndexOfSlot(slot);
-	CPlayerS2 *pPlayer = GetPlayerBySlot(slot);
-	if (pPlayer == nullptr || !pPlayer->IsConnected())
-		return;
-
-	pPlayer->Disconnect();
-
-	std::list<IClientListener *>::iterator iter;
-	for (iter = m_hooks.begin(); iter != m_hooks.end(); iter++)
-		(*iter)->OnClientDisconnected(client);
-
-	if (m_cldisconnect_post != nullptr && m_cldisconnect_post->GetFunctionCount() > 0)
-	{
-		m_cldisconnect_post->PushCell(client);
-		m_cldisconnect_post->Execute(NULL);
-	}
+	ClientDisconnected(GetPlayerBySlot(slot));
 }
 
 void PlayerManagerS2::Hook_ClientSettingsChanged(CPlayerSlot slot)

@@ -15,6 +15,11 @@
 	{
 	}
 
+	"engine.cs2.txt"
+	{
+		"engine"	"cs2"
+	}
+
 	"engine.l4d.txt"
 	{
 		"engine"	"left4dead"

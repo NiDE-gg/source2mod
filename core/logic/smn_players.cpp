@@ -776,6 +776,7 @@ static cell_t IsClientObserver(IPluginContext *pContext, const cell_t *params)
 	return bridge->playerInfo->IsObserver(pInfo) ? 1 : 0;
 }
 
+#ifndef SOURCE2_WIP
 static cell_t GetClientTeam(IPluginContext *pContext, const cell_t *params)
 {
 	int client = params[1];
@@ -797,6 +798,8 @@ static cell_t GetClientTeam(IPluginContext *pContext, const cell_t *params)
 
 	return bridge->playerInfo->GetTeamIndex(pInfo);
 }
+
+#endif
 
 static cell_t GetFragCount(IPluginContext *pContext, const cell_t *params)
 {
@@ -1038,6 +1041,7 @@ static cell_t GetModelName(IPluginContext *pContext, const cell_t *params)
 	return 1;
 }
 
+#ifndef SOURCE2_WIP
 static cell_t GetHealth(IPluginContext *pContext, const cell_t *params)
 {
 	int client = params[1];
@@ -1059,6 +1063,8 @@ static cell_t GetHealth(IPluginContext *pContext, const cell_t *params)
 
 	return bridge->playerInfo->GetHealth(pInfo);
 }
+
+#endif
 
 static cell_t GetClientOfUserId(IPluginContext *pContext, const cell_t *params)
 {
@@ -1624,7 +1630,9 @@ REGISTER_NATIVES(playernatives)
 	{ "GetClientInfo", sm_GetClientInfo },
 	{ "GetClientIP", sm_GetClientIP },
 	{ "GetClientName", sm_GetClientName },
+#ifndef SOURCE2_WIP
 	{ "GetClientTeam", GetClientTeam },
+#endif
 	{ "GetClientUserId", GetClientUserId },
 	{ "GetMaxClients", sm_GetMaxClients },
 	{ "GetUserAdmin", GetUserAdmin },
@@ -1648,7 +1656,9 @@ REGISTER_NATIVES(playernatives)
 	{ "GetClientMaxs", GetPlayerMaxs },
 	{ "GetClientWeapon", GetWeaponName },
 	{ "GetClientModel", GetModelName },
+#ifndef SOURCE2_WIP
 	{ "GetClientHealth", GetHealth },
+#endif
 	{ "GetClientOfUserId", GetClientOfUserId },
 	{ "ShowActivity", ShowActivity },
 	{ "ShowActivityEx", ShowActivityEx },

@@ -177,6 +177,8 @@ public:
 	void NotifyPostAdminChecks(CPlayerS2 *pPlayer);
 
 private:
+	void ClientDisconnecting(CPlayerS2 *pPlayer);
+	void ClientDisconnected(CPlayerS2 *pPlayer);
 	void AuthorizePlayer(CPlayerS2 *pPlayer);
 	int IndexOfSlot(CPlayerSlot slot) const { return slot.Get() + 1; }
 

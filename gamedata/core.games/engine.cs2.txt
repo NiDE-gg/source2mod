@@ -1,0 +1,23 @@
+"Games"
+{
+	"#default"
+	{
+		"#supported"
+		{
+			"engine" "cs2"
+		}
+		"Offsets"
+		{
+			// GameResourceServiceServerV001 member, Linux x86_64.
+			// Verified 2026-10-13 in the live server: service+80 points to
+			// an object with RTTI name 17CGameEntitySystem. See docs/progress.md
+			// in the port workspace, M11, and logs/m11_entity_probe.log.
+			// libengine2.so build ID: 8bdeb262a9063c680c4e879e74afda1250019a8d
+			// libserver.so build ID: 1e5fa220dc5be7796d857a811f706e648cad97d7
+			"S2GameEntitySystem"
+			{
+				"linux64" "80"
+			}
+		}
+	}
+}
