@@ -40,6 +40,7 @@ project.sources += [
   #'ConsoleDetours.cpp',
   #'smn_commandline.cpp',
   'GameHooks.cpp',
+  'smn_console_s2.cpp',
 ]
 
 # SDK name to shipping gamedir
