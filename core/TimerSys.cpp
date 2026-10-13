@@ -33,7 +33,9 @@
 #include "TimerSys.h"
 #include "sourcemm_api.h"
 #include "frame_hooks.h"
+#ifndef SOURCE2_WIP
 #include "ConVarManager.h"
+#endif
 #include "logic_bridge.h"
 
 #define TIMER_MIN_ACCURACY		0.1
@@ -43,10 +45,12 @@ double g_fUniversalTime = 0.0f;
 float g_fGameStartTime = 0.0f;	/* Game game start time, non-universal */
 double g_fTimerThink = 0.0f;		/* Timer's next think time */
 const double *g_pUniversalTime = &g_fUniversalTime;
+#ifndef SOURCE2_WIP
 ConVar *mp_timelimit = NULL;
 int g_TimeLeftMode = 0;
 
 ConVar sm_time_adjustment("sm_time_adjustment", "0", 0, "Adjusts the server time in seconds");
+#endif
 
 inline double GetSimulatedTime()
 {
@@ -55,7 +59,12 @@ inline double GetSimulatedTime()
 
 time_t GetAdjustedTime(time_t *buf)
 {
+#ifdef SOURCE2_WIP
+	/* sm_time_adjustment needs the legacy ConVar object; plain time for now. */
+	time_t val = time(NULL);
+#else
 	time_t val = time(NULL) + sm_time_adjustment.GetInt();
+#endif
 	if (buf)
 	{
 		*buf = val;
@@ -63,6 +72,7 @@ time_t GetAdjustedTime(time_t *buf)
 	return val;
 }
 
+#ifndef SOURCE2_WIP
 class DefaultMapTimer : 
 	public IMapTimer,
 	public SMGlobalClass,
@@ -136,6 +146,7 @@ private:
 private:
 	bool m_bInUse;
 } s_DefaultMapTimer;
+#endif // !SOURCE2_WIP
 
 /**
  * If the ticking process has run amok (should be impossible), we 
@@ -194,12 +205,16 @@ void TimerSystem::OnSourceModAllInitialized()
 
 void TimerSystem::OnSourceModGameInitialized()
 {
+#ifndef SOURCE2_WIP
 	mp_timelimit = icvar->FindVar("mp_timelimit");
 
 	if (m_pMapTimer == NULL && mp_timelimit != NULL)
 	{
 		SetMapTimer(&s_DefaultMapTimer);
 	}
+#endif
+	/* Source2: no default map timer yet; GetMapTimeLeft reports
+	 * unsupported (returns false) while m_pMapTimer is null. */
 }
 
 void TimerSystem::OnSourceModShutdown()
@@ -217,6 +232,25 @@ void TimerSystem::OnSourceModLevelEnd()
 
 void TimerSystem::GameFrame(bool simulating)
 {
+#ifdef SOURCE2_WIP
+	/* Frames can arrive before the game server (and thus CGlobalVars)
+	 * exists; advance on the fixed tick until globals are available. */
+	if (gpGlobals == NULL)
+	{
+		g_fUniversalTime += (1.0 / 64.0);
+		if (g_fUniversalTime >= g_fTimerThink)
+		{
+			RunFrame();
+			g_fTimerThink = CalcNextThink(g_fTimerThink, TIMER_MIN_ACCURACY);
+		}
+		RunFrameHooks(simulating);
+		if (m_pOnGameFrame != NULL && m_pOnGameFrame->GetFunctionCount())
+		{
+			m_pOnGameFrame->Execute(NULL);
+		}
+		return;
+	}
+#endif
 	if (simulating && m_bHasMapTickedYet)
 	{
 		g_fUniversalTime += gpGlobals->curtime - m_fLastTickedTime;
@@ -228,7 +262,13 @@ void TimerSystem::GameFrame(bool simulating)
 	}
 	else 
 	{
+#ifdef SOURCE2_WIP
+		/* CS2 runs a fixed 64-tick rate (TICK_INTERVAL, shareddefs.h);
+		 * CGlobalVars no longer exposes interval_per_tick. */
+		g_fUniversalTime += (1.0 / 64.0);
+#else
 		g_fUniversalTime += gpGlobals->interval_per_tick;
+#endif
 	}
 
 	m_fLastTickedTime = gpGlobals->curtime;
@@ -248,6 +288,13 @@ void TimerSystem::GameFrame(bool simulating)
 		m_pOnGameFrame->Execute(NULL);
 	}
 }
+
+#ifdef SOURCE2_WIP
+void TimerSystem::OnPreWorldUpdate(bool simulating)
+{
+	GameFrame(simulating);
+}
+#endif
 
 void TimerSystem::RunFrame()
 {

@@ -50,6 +50,7 @@
 #else
 
 #include "PlayerManagerS2.h"
+#include "TimerSys.h"
 
 #define SOURCE_BIN_PREFIX ""
 #define SOURCE_BIN_SUFFIX ""
@@ -450,6 +451,7 @@ CoreProviderImpl::CoreProviderImpl()
 	this->gamehelpers = &g_HL2;
 	this->menus = &g_Menus;
 #else
+	this->timersys = &g_Timers;
 	this->playerhelpers = &g_PlayersS2;
 #endif
 

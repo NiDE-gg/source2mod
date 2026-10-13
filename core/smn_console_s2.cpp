@@ -344,8 +344,16 @@ static cell_t sm_GetCmdArgString(IPluginContext *pContext, const cell_t *params)
 	return (cell_t)length;
 }
 
+static cell_t sm_GetEngineTime(IPluginContext *pContext, const cell_t *params)
+{
+	/* Same semantics as the Source1 native on modern engines:
+	 * high-precision engine clock (Plat_FloatTime). */
+	return sp_ftoc((float)Plat_FloatTime());
+}
+
 REGISTER_NATIVES(s2ConsoleNatives)
 {
+	{"GetEngineTime",		sm_GetEngineTime},
 	{"RegServerCmd",		sm_RegServerCmd},
 	{"RegConsoleCmd",		sm_RegConsoleCmd},
 	{"RegAdminCmd",			sm_RegAdminCmd},

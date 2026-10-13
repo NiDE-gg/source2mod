@@ -40,7 +40,10 @@
 
 #ifndef SOURCE2_WIP
 #include "PlayerManager.h"
+#endif
 #include "TimerSys.h"
+#ifdef SOURCE2_WIP
+#include <iserver.h>
 #endif
 
 #include "compat_wrappers.h"
@@ -63,6 +66,11 @@ SH_DECL_HOOK1_void(IServerGameDLL, GameFrame, SH_NOATTRIB, false, bool);
 SH_DECL_HOOK1_void(IServerGameDLL, Think, SH_NOATTRIB, false, bool);
 SH_DECL_HOOK1_void(IVEngineServer, ServerCommand, SH_NOATTRIB, false, const char *);
 SH_DECL_HOOK0(IVEngineServer, GetMapEntitiesString, SH_NOATTRIB, 0, const char *);
+#else
+/* ISource2Server::GameFrame exists but is never invoked by the CS2
+ * dedicated server (verified empirically); PreWorldUpdate(bool simulating)
+ * is the per-frame entry the engine actually calls. */
+SH_DECL_HOOK1_void(IServerGameDLL, PreWorldUpdate, SH_NOATTRIB, false, bool);
 #endif
 
 SourceModBase g_SourceMod;
@@ -313,6 +321,8 @@ void SourceModBase::StartSourceMod(bool late)
 #ifndef SOURCE2_WIP
 	SH_ADD_HOOK(IServerGameDLL, LevelShutdown, gamedll, SH_MEMBER(this, &SourceModBase::LevelShutdown), false);
 	SH_ADD_HOOK(IServerGameDLL, GameFrame, gamedll, SH_MEMBER(&g_Timers, &TimerSystem::GameFrame), false);
+#else
+	SH_ADD_HOOK(IServerGameDLL, PreWorldUpdate, gamedll, SH_MEMBER(&g_Timers, &TimerSystem::OnPreWorldUpdate), false);
 #endif
 
 	enginePatch = SH_GET_CALLCLASS(engine);
@@ -393,6 +403,14 @@ void SourceModBase::StartSourceMod(bool late)
 #ifdef SOURCE2_WIP
 void SourceModBase::LevelInitSource2(const char *pMapName)
 {
+	/* Source2: ISmmAPI::GetCGlobals() is a Source1 path and stays null;
+	 * the live CGlobalVars come from the active network game server,
+	 * which exists by LoopInit time. */
+	if (netservice != NULL && netservice->GetIGameServer() != NULL)
+	{
+		gpGlobals = netservice->GetIGameServer()->GetGlobals();
+	}
+
 	/* Seed rand() globally per map */
 	srand(time(NULL));
 
@@ -698,6 +716,8 @@ void SourceModBase::ShutdownServices()
 	SH_REMOVE_HOOK(IServerGameDLL, LevelShutdown, gamedll, SH_MEMBER(this, &SourceModBase::LevelShutdown), false);
 	SH_REMOVE_HOOK(IServerGameDLL, GameFrame, gamedll, SH_MEMBER(&g_Timers, &TimerSystem::GameFrame), false);
 	SH_REMOVE_HOOK(IServerGameDLL, Think, gamedll, SH_MEMBER(logicore.callbacks, &IProviderCallbacks::OnThink), false);
+#else
+	SH_REMOVE_HOOK(IServerGameDLL, PreWorldUpdate, gamedll, SH_MEMBER(&g_Timers, &TimerSystem::OnPreWorldUpdate), false);
 #endif
 }
 

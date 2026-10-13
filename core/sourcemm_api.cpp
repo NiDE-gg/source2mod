@@ -31,6 +31,9 @@
 
 #include "sourcemod.h"
 #include "sourcemm_api.h"
+#ifdef SOURCE2_WIP
+#include <iserver.h>
+#endif
 #include "Logger.h"
 #include "concmd_cleaner.h"
 #include "compat_wrappers.h"
@@ -54,6 +57,9 @@ CallClass<IServerGameDLL> *gamedllPatch = NULL;
 IPlayerInfoManager *playerinfo = NULL;
 #endif
 IFileSystem *filesystem = NULL;
+#ifdef SOURCE2_WIP
+INetworkServerService *netservice = NULL;
+#endif
 #ifndef SOURCE2_WIP
 IEngineSound *enginesound = NULL;
 #endif
@@ -109,6 +115,9 @@ bool SourceMod_Core::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen
 	GET_V_IFACE_CURRENT(GetEngineFactory, gameevents, IGameEventManager2, INTERFACEVERSION_GAMEEVENTSMANAGER2);
 #endif
 	GET_V_IFACE_CURRENT(GetFileSystemFactory, filesystem, IFileSystem, FILESYSTEM_INTERFACE_VERSION);
+#ifdef SOURCE2_WIP
+	GET_V_IFACE_CURRENT(GetEngineFactory, netservice, INetworkServerService, NETWORKSERVERSERVICE_INTERFACE_VERSION);
+#endif
 
 #ifndef SOURCE2_WIP
 	GET_V_IFACE_CURRENT(GetEngineFactory, enginesound, IEngineSound, IENGINESOUND_SERVER_INTERFACE_VERSION);

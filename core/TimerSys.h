@@ -83,6 +83,11 @@ public:
 	void RunFrame();
 	void RemoveMapChangeTimers();
 	void GameFrame(bool simulating);
+#ifdef SOURCE2_WIP
+	/* Per-frame entry on Source2: the engine calls
+	 * ISource2Server::PreWorldUpdate (GameFrame is never invoked). */
+	void OnPreWorldUpdate(bool simulating);
+#endif
 private:
 	List<ITimer *> m_SingleTimers;
 	List<ITimer *> m_LoopTimers;

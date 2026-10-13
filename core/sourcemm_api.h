@@ -92,6 +92,10 @@ extern SourceHook::CallClass<IServerGameDLL> *gamedllPatch;
 extern IPlayerInfoManager *playerinfo;
 #endif
 extern IFileSystem *filesystem;
+#ifdef SOURCE2_WIP
+class INetworkServerService;
+extern INetworkServerService *netservice;
+#endif
 #ifndef SOURCE2_WIP
 extern IEngineSound *enginesound;
 #endif
